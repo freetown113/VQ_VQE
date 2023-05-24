@@ -23,8 +23,10 @@ class Encoder(hk.Module):
     def __call__(self, x):
         for id, out in enumerate(hidden, start=1):
             x = hk.Conv2D(out, [4, 4], stride=1 if id%2 else 2,
-                          padding='SAME')(x)
+                          padding='SAME', name=f'enc_{id}')(x)
             x = jax.nn.leaky_relu(x)
+
+        x = hk.Conv2D(out, [1, 1], stride=1)(x)
         return x
 
 
@@ -37,12 +39,12 @@ class Decoder(hk.Module):
     def __call__(self, x):
        for i, out in enumerate(self.hid, start=1):
            x = hk.Conv2DTranspose(out, [4, 4], stride=1 if id%2 else 2,
-                                  padding='SAME')(x)
+                                  padding='SAME', name=f'dec_{i}')(x)
            x = jax.nn.leaky_relu(x)
        return x
         
 
-class VQ(hk.Module):
+class Quantizer(hk.Module):
     def __init__(self, num_emb, emb_dim, commitment_coeff=0.25):
         super().__init__()
         self.dim = emb_dim
@@ -66,7 +68,17 @@ class VQ(hk.Module):
         quantized = jnp.matmul(encodings, self.dict, transpose_b=True)
         quantized = jnp.reshape(original_shape)
 
-        commitment_loss = 
+        latent_loss = jnp.square(jax.lax.stop_gradient(x) - quatized)
+        commitment_loss = jnp.square(jax.lax.stop_gradient(quatized) - x)
+  
+        loss = latent_loss + self.com_coef * commitment_loss
+
+        quantized = x + jax.lax.stop_gradient(quantized - x)
+        avg_probs = jnp.mean(encodings, 0)
+        perplexity = jnp.exp(-jnp.sum(avg_probs * jnp.log(avg_probs + 1e-10)))
+
+        out = dict({'quantized': quantized, 'loss': loss, 'perplexity': perplexity})
+        return out
 
 
     def calc_distances_matrix(self, x):
@@ -77,6 +89,27 @@ class VQ(hk.Module):
                     2 * similarity
 
         return distances
+
+
+class VQ_VAE(hk.Modeule):
+    def __init__(self, enc, dec, quant, variance, name=None)
+        super().__init__(self)
+        self.enc = enc
+        self.dec = dec
+        self.quant = quant
+        self.var = variance
+
+    def __call__(self, x):
+        encoded = self.enc(x)
+        quantized = self.quant(encoded)
+        decoded = self.dec(quantized['quantized'])
+        
+        reconstructed_loss = jnp.square(x - decoded).mean() / self.var
+        loss = reconstructed_loss + quantized['loss']
+
+        return dict({'loss': loss, 'reconst': reconstructed_loss, 'decoded': decoded})
+
+
 
 
 
