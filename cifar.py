@@ -25,18 +25,20 @@ cifar100 = torchvision.datasets.CIFAR100('./cifar100', train=True,
                                          transform=transform, 
                                          download=True)
 
-def compute_variance():
-    train_data = iter(cifar100)
-    data = np.zeros((len(cifar100, 32, 32, 3)))
-    for id, (img, lbl) in train_data:
+def compute_variance(tricked=False):
+    if tricked:
+        return 4.4245717472233694e-06
+    train_data, _ = get_loader(1, False, False, False)
+    data = np.zeros((len(cifar100), 32, 32, 3))
+    for id, img in enumerate(train_data):
         data[id] = img
     return np.var(data / 255.0)
 
 
-def get_loader(batch, var=False):
-    return torch.utils.data.DataLoader(cifar100, batch_size=batch, shuffle=True,
-                                         collate_fn=collate, drop_last=True),
-           compute_variance if var else None
+def get_loader(batch, var=False, shuffle=True, drop_last=True):
+    return torch.utils.data.DataLoader(cifar100, batch_size=batch, shuffle=shuffle,
+                                         collate_fn=collate, drop_last=drop_last), \
+           compute_variance(tricked=True) if var else None
 
 
 
