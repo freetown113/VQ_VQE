@@ -1,4 +1,4 @@
-load(":build_defs.bzl", "hk_py_binary", "hk_py_library")
+load(":build_defz.bzl", "hk_py_binary", "hk_py_library")
 
 hk_py_binary(
     name = "train",
