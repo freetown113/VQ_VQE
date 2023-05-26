@@ -71,7 +71,7 @@ class Quantizer(hk.Module):
         latent_loss = jnp.square(jax.lax.stop_gradient(input) - quantized)
         commitment_loss = jnp.square(jax.lax.stop_gradient(quantized) - input)
   
-        loss = latent_loss + self.com_coef * commitment_loss
+        loss = jnp.mean(latent_loss + self.com_coef * commitment_loss)
 
         quantized = input + jax.lax.stop_gradient(quantized - input)
         avg_probs = jnp.mean(encodings, 0)
@@ -103,12 +103,17 @@ class VQ_VAE(hk.Module):
         encoded = self.enc(x)
         quantized = self.quant(encoded)
         decoded = self.dec(quantized['quantized'])
-        
+
         reconstructed_loss = jnp.square(x - decoded).mean() / self.var
+
         loss = reconstructed_loss + quantized['loss']
 
-        return dict({'loss': loss, 'reconst': reconstructed_loss, 'decoded': decoded})
-
+        return loss, dict({'loss': loss, 
+                     'reconstruct': reconstructed_loss, 
+                     'decoded': decoded, 
+                     'perplex': quantized['perplexity'],
+                     'reconstructed': jax.lax.stop_gradient(decoded)
+                })
 
 
 
