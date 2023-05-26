@@ -10,15 +10,19 @@ from models import Encoder, Decoder, Quantizer, VQ_VAE
 
 def create_fwd_fn(model, *args, **kwargs):
     def fwd_pass(input):
+        #vq_vae_model = model(*args, **kwargs)
+        #output = vq_vae_model(input)
+        #return output
         return model(*args, **kwargs)(input)
     return hk.without_apply_rng(hk.transform(fwd_pass))
 
-
-def make_loss_fn(input, var, kwargs):
-    args = {kwargs[i].name: kwargs[i].value for i in dir(kwargs)}
-    enc = Encoder
-    dec = Decoder
-    quant = Quantizer
-    model = create_fwd_fn(VQ_VAE, enc, dec, quant, var, **args)
+def build_model(input, var, kwargs):
+    cfg = {kwargs[i].name: kwargs[i].value for i in dir(kwargs)}
+    model = create_fwd_fn(VQ_VAE, Encoder, Decoder, Quantizer, var, **cfg)
     return model
-    
+
+
+def get_loss_fn(fwd, params, input):
+    output = fwd.apply(params, input)
+    loss = output['loss']
+    return loss, output
